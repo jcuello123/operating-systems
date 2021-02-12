@@ -1,5 +1,5 @@
 main: main.c
-	gcc -pthread -o main main.c
+	gcc -pthread -DPTHREAD_SYNC -o main main.c
 
 clean : 
 	-$(RM) $(OBJS) main
