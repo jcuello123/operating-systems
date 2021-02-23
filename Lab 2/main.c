@@ -7,10 +7,8 @@
 #include <pthread.h>
 
 int max_capacity;
-int current_capacity = 0;
 pthread_mutex_t question_lock;
 sem_t room_lock;
-pthread_barrier_t barrier;
 
 void validate_parameter(char number[]){
     if (number == NULL){
@@ -27,7 +25,6 @@ void validate_parameter(char number[]){
 }
 
 void leave_office(int student){
-    current_capacity--;
     printf("Student %d leaves the office.\n", student);
 }
 
@@ -44,16 +41,10 @@ void answer_start(int student){
 }
 
 void question_start(int student){
-    pthread_mutex_lock(&question_lock);
     printf("Student %d asks a question.\n", student);
-    answer_start(student);
-    answer_done(student);
-    question_done(student);
-    pthread_mutex_unlock(&question_lock);
 }
 
 void enter_office(int student){
-    current_capacity++;
     printf("Student %d enters the office.\n", student);
 }
 
@@ -65,29 +56,28 @@ void *start(void *arg){
     enter_office(student);
 
     while(questions > 0){
+        pthread_mutex_lock(&question_lock);
         question_start(student);
+        answer_start(student);
+        answer_done(student);
+        question_done(student);
+        pthread_mutex_unlock(&question_lock);
         questions--;
     }
 
     leave_office(student);
     sem_post(&room_lock);
-
-    //pthread_mutex_lock(&lock);
-
-    //pthread_mutex_unlock(&lock);
-    
-    //pthread_barrier_wait(&barrier);
 }
 
 int main(int argc, char* argv[]){   
     validate_parameter(argv[1]);
     validate_parameter(argv[2]);
+
     int number_of_threads = atoi(argv[1]);
     max_capacity = atoi(argv[2]);
-    
+
     pthread_mutex_init(&question_lock, NULL);
     sem_init(&room_lock, 0, max_capacity);
-    //pthread_barrier_init(&barrier, NULL, number_of_threads);
 
     pthread_t tid;
     
@@ -99,4 +89,3 @@ int main(int argc, char* argv[]){
     pthread_exit(NULL);
     return 0;
 }
-
