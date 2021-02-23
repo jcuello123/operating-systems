@@ -6,9 +6,8 @@
 #include <stdlib.h>
 #include <pthread.h>
 
-int max_capacity;
 pthread_mutex_t question_lock;
-sem_t room_lock;
+sem_t capacity;
 
 void validate_parameter(char number[]){
     if (number == NULL){
@@ -52,7 +51,7 @@ void *start(void *arg){
     int student = (intptr_t) arg;
     int questions = (student % 4) + 1;
 
-    sem_wait(&room_lock);
+    sem_wait(&capacity);
     enter_office(student);
 
     while(questions > 0){
@@ -66,7 +65,7 @@ void *start(void *arg){
     }
 
     leave_office(student);
-    sem_post(&room_lock);
+    sem_post(&capacity);
 }
 
 int main(int argc, char* argv[]){   
@@ -74,10 +73,10 @@ int main(int argc, char* argv[]){
     validate_parameter(argv[2]);
 
     int number_of_threads = atoi(argv[1]);
-    max_capacity = atoi(argv[2]);
+    int max_capacity = atoi(argv[2]);
 
     pthread_mutex_init(&question_lock, NULL);
-    sem_init(&room_lock, 0, max_capacity);
+    sem_init(&capacity, 0, max_capacity);
 
     pthread_t tid;
     
