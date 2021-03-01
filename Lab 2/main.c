@@ -1,46 +1,90 @@
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/init.h>
-#include <linux/sched/signal.h>
-#include <linux/sched.h>
- 
- 
-struct task_struct *task;        /*    Structure defined in sched.h for tasks/processes    */
-struct task_struct *task_child;        /*    Structure needed to iterate through task children    */
-struct list_head *list;            /*    Structure needed to iterate through the list in each task->children struct    */
- 
-int iterate_init(void)                    /*    Init Module    */
-{
-    printk(KERN_INFO "%s","LOADING MODULE\n");    /*    good practice to log when loading/removing modules    */
-     
-    for_each_process( task ){            /*    for_each_process() MACRO for iterating through each task in the os located in linux\sched\signal.h    */
-        printk(KERN_INFO "\nPARENT PID: %d PROCESS: %s STATE: %ld",task->pid, task->comm, task->state);/*    log parent id/executable name/state    */
-        list_for_each(list, &task->children){                        /*    list_for_each MACRO to iterate through task->children    */
- 
-            task_child = list_entry( list, struct task_struct, sibling );    /*    using list_entry to declare all vars in task_child struct    */
-     
-            printk(KERN_INFO "\nCHILD OF %s[%d] PID: %d PROCESS: %s STATE: %ld",task->comm, task->pid, /*    log child of and child pid/name/state    */
-                task_child->pid, task_child->comm, task_child->state);
+#include <stdio.h>
+#include <semaphore.h>
+#include <stdint.h>
+#include <ctype.h>
+#include <stdbool.h>
+#include <stdlib.h>
+#include <pthread.h>
+
+pthread_mutex_t question_lock;
+sem_t capacity;
+
+void validate_parameter(char number[]){
+    if (number == NULL){
+        printf("Parameter isn't a valid number. Exiting the program..\n");
+        exit(-1);
+    }
+
+    for (int i = 0; number[i] != '\0'; i++){
+        if (!isdigit(number[i])){
+            printf("Parameter isn't a valid number. Exiting the program..\n");
+            exit(-1);
         }
-        printk("-----------------------------------------------------");    /*for aesthetics*/
-    }    
-     
- 
+    }
+}
+
+void leave_office(int student){
+    printf("Student %d leaves the office.\n", student);
+}
+
+void question_done(int student){
+    printf("Student %d is satisfied.\n", student);
+}
+
+void answer_done(int student){
+    printf("Professor is done with answer for student %d\n", student);
+}
+
+void answer_start(int student){
+    printf("Professor starts to answer question for student %d\n", student);
+}
+
+void question_start(int student){
+    printf("Student %d asks a question.\n", student);
+}
+
+void enter_office(int student){
+    printf("Student %d enters the office.\n", student);
+}
+
+void *start(void *arg){
+    int student = (intptr_t) arg;
+    int questions = (student % 4) + 1;
+
+    sem_wait(&capacity);
+    enter_office(student);
+
+    while(questions > 0){
+        pthread_mutex_lock(&question_lock);
+        question_start(student);
+        answer_start(student);
+        answer_done(student);
+        question_done(student);
+        pthread_mutex_unlock(&question_lock);
+        questions--;
+    }
+
+    leave_office(student);
+    sem_post(&capacity);
+}
+
+int main(int argc, char* argv[]){   
+    validate_parameter(argv[1]);
+    validate_parameter(argv[2]);
+
+    int number_of_threads = atoi(argv[1]);
+    int max_capacity = atoi(argv[2]);
+
+    pthread_mutex_init(&question_lock, NULL);
+    sem_init(&capacity, 0, max_capacity);
+
+    pthread_t tid;
+    
+    for (int i = 0; i < number_of_threads; i++){
+        pthread_create(&tid, NULL, start, (void *)(intptr_t) i);
+    }
+
+    pthread_join(tid, NULL);
+    pthread_exit(NULL);
     return 0;
- 
-}                /*    End of Init Module    */
-     
-void cleanup_exit(void)        /*    Exit Module    */
-{
- 
- 
-    printk(KERN_INFO "%s","REMOVING MODULE\n");
- 
-}                /*    End of Exit Module    */
- 
-module_init(iterate_init);    /*    Load Module MACRO    */
-module_exit(cleanup_exit);    /*    Remove Module MACRO    */
- 
-MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("ITERATE THROUGH ALL PROCESSES/CHILD PROCESSES IN THE OS");
-MODULE_AUTHOR("Laerehte");
+}
